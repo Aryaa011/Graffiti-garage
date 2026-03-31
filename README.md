@@ -1,2 +1,21 @@
-# Graffiti-garage
-Graffiti Car Studio is an interactive web-based experience that allows users to creatively customize cars by spraying graffiti in a realistic, stylized environment.  Instead of using traditional editing tools, users interact directly with the scene—selecting a car, choosing graffiti styles, and placing them dynamically onto the vehicle. 
+# 🎨 Graffiti Car Studio
+
+An interactive web experience where users can:
+- Select cars
+- Spray graffiti in a 3D-like environment
+- Get smart design suggestions
+- Export their creation as an image
+
+## 🚀 Features
+- Spray-based interaction system
+- Responsive design
+- Smart feedback system
+- Export functionality (PNG)
+
+## 🛠 Tech Used
+- HTML, CSS, JavaScript
+- html2canvas
+
+## 🎯 Goal
+Create a fun, interactive, and visually engaging experience rather than a static website.
+live demo : https://graffitigarage.netlify.app
