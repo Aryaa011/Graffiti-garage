@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graffiti Car Studio</title>
+  <meta name="description" content="Choose your ride and customize it in the ultimate graffiti studio. An immersive urban car customization experience." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    /* ============================================
+       RESET & BASE
+    ============================================ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #000;
+    }
+
+    /* ============================================
+       SCENE CONTAINER
+    ============================================ */
+    #scene {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      opacity: 0; /* Hidden initially for intro */
+      transition: opacity 1.2s ease-out;
+    }
+    #scene.visible {
+      opacity: 1;
+    }
+
+    /* ============================================
+       GARAGE DOOR INTRO
+    ============================================ */
+    #garage-door-wrapper {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      transition: transform 1.5s ease-out;
+    }
+    #garage-door-wrapper.open {
+      transform: translateY(-100%);
+    }
+    #garage-door {
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(to bottom, #111 0px, #111 20px, #2a2a2a 22px, #050505 24px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 20px solid #000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    .door-shake {
+      animation: door-shake 0.15s infinite;
+    }
+    @keyframes door-shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-2px); }
+      100% { transform: translateX(0); }
+    }
+
+    #open-btn {
+      padding: 18px 45px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: #fff;
+      background: #c0392b;
+      border: 3px solid #000;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 2px 0 rgba(255,255,255,0.2);
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
+      transition: transform 0.1s, background 0.2s;
+      letter-spacing: 0.15em;
+    }
+    #open-btn:hover {
+      background: #e74c3c;
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.9), inset 0 2px 0 rgba(255,255,255,0.3);
+    }
+    #open-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 2px 0 rgba(255,255,255,0.1);
+    }
+
+    /* ============================================
+       BACKGROUND — full-screen, no overlay
+    ============================================ */
+    #bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      display: block;
+      z-index: 0;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       CAR WRAPPER
+       – horizontally centered
+       – bottom-anchored so car sits on the floor
+    ============================================ */
+    #car-wrapper {
+      position: absolute;
+      /* Centered horizontally */
+      left: 50%;
+      transform: translateX(-50%);
+      /* Anchored to the floor — bottom of car aligns with floor */
+      top: auto;
+      bottom: 5%;
+      /* 80vw ensures it doesn't shrink aggressively on half-screens */
+      width: clamp(280px, 80vw, 700px);
+      height: auto;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #car-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transform-origin: bottom center;
+      transition: opacity 0.35s ease;
+      /* Soft realistic ground shadow */
+      filter: drop-shadow(0 20px 30px rgba(0,0,0,0.4));
+    }
+
+    #car-img.switching {
+      opacity: 0;
+    }
+
+    /* ============================================
+       TOP SELECTION BAR
+    ============================================ */
+    #car-select {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 20px 10px;
+      /* Very subtle top fade to give selection bar breathing room */
+      background: linear-gradient(to bottom, rgba(0,0,0,0.52) 0%, transparent 100%);
+    }
+
+    #car-select h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(1.1rem, 3vw, 1.6rem);
+      letter-spacing: 0.18em;
+      color: #fff;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.7);
+      margin-bottom: 10px;
+      line-height: 1;
+    }
+
+    #thumbnail-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .car-thumb {
+      width: clamp(64px, 10vw, 110px);
+      height: clamp(38px, 6vw, 66px);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(6px);
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .car-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 4px;
+    }
+
+    .car-thumb:hover {
+      border-color: rgba(255,255,255,0.5);
+      transform: translateY(-2px);
+      background: rgba(255,255,255,0.15);
+    }
+
+    .car-thumb.active {
+      border-color: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.18);
+    }
+
+    /* ============================================
+       BOTTOM TABLE / SPRAY TABLE
+    ============================================ */
+    #spray-table {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 10px;
+      /* Matching bottom gradient for immersion */
+      background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%);
+      padding-top: 40px;
+    }
+
+    #table-platform {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: rgba(0,0,0,0.28);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 10px 28px;
+      width: clamp(220px, 50vw, 420px);
+    }
+
+    #spray-label {
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(0.65rem, 1.5vw, 0.82rem);
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+    }
+
+    #spray-can-img {
+      width: clamp(32px, 5vw, 52px);
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+      transition: transform 0.25s ease;
+    }
+
+    #spray-can-img:hover {
+      transform: rotate(-8deg) scale(1.08);
+    }
+
+    /* ============================================
+       AUDIO HINT (tiny, non-intrusive)
+    ============================================ */
+    #audio-hint {
+      position: absolute;
+      bottom: 70px;
+      right: 18px;
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: color 0.2s;
+      user-select: none;
+    }
+
+    #audio-hint:hover {
+      color: rgba(255,255,255,0.75);
+    }
+
+    #audio-hint svg {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+    }
+
+    /* ============================================
+       GRAFFITI PANEL (SPRAY MODE)
+    ============================================ */
+    #graffiti-panel {
+      position: absolute;
+      bottom: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      background: rgba(10, 10, 10, 0.85);
+      padding: 12px 20px;
+      border-radius: 12px 12px 0 0;
+      backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: none;
+      z-index: 30;
+      transition: bottom 0.3s ease-out;
+      max-width: 90vw;
+      overflow-x: auto;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    body.spray-mode #graffiti-panel {
+      bottom: 0;
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    .graf-thumb {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      cursor: pointer;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      transition: transform 0.2s, border-color 0.2s;
+      flex-shrink: 0;
+    }
+
+    .graf-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .graf-thumb.selected {
+      border-color: #ffd700;
+      background: rgba(255, 215, 0, 0.1);
+    }
+
+    /* Small spray can icon as pointer */
+    body.spray-mode #car-wrapper {
+      pointer-events: auto; /* Required to intercept spray clicks */
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%23ffd700" d="M12,2a1,1,0,0,1,1,1v2H11V3A1,1,0,0,1,12,2ZM16,8v13a1,1,0,0,1-1,1H9a1,1,0,0,1-1-1V8A1,1,0,0,1,9,7h6A1,1,0,0,1,16,8Zm-2,1H10v11h4V9ZM8,3V5H7V3Z"/></svg>') 12 12, crosshair;
+    }
+
+    #spray-table {
+      cursor: pointer;
+      transition: filter 0.2s;
+    }
+    
+    body.spray-mode #spray-table {
+      filter: drop-shadow(0 0 10px #ffd700);
+    }
+
+    /* Placed Graffiti Layer */
+    .placed-graf {
+      position: absolute;
+      pointer-events: none;
+      width: clamp(60px, 8vw, 140px);
+      height: auto;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      opacity: 0.9;
+      mix-blend-mode: hard-light; /* Makes it act like paint reacting to car lighting */
+    }
+
+    /* ============================================
+       EXPORT & SUGGESTIONS
+    ============================================ */
+    #export-area {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #export-area > * {
+      pointer-events: auto;
+    }
+    #export-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 50;
+      background: rgba(255, 215, 0, 0.85);
+      color: #000;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      transition: transform 0.2s, background 0.2s;
+    }
+    #export-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 230, 50, 1);
+    }
+    #suggest-box {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 50;
+      background: rgba(10, 10, 10, 0.7);
+      border-left: 3px solid #ffd700;
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      backdrop-filter: blur(8px);
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+      font-size: 0.8rem;
+      max-width: 200px;
+      opacity: 0;
+      transform: translateX(-10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      pointer-events: none;
+      line-height: 1.3;
+    }
+    #suggest-box.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    #suggest-box strong {
+      display: block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #ffd700;
+      margin-bottom: 4px;
+    }
+
+    /* ============================================
+       RESPONSIVE TWEAKS
+    ============================================ */
+    @media (max-width: 768px) {
+      #car-select {
+        padding: 10px 12px 8px;
+      }
+
+      #spray-table {
+        padding-top: 30px;
+      }
+
+      #table-platform {
+        padding: 8px 18px;
+      }
+    }
+
+    @media (max-height: 500px) and (orientation: landscape) {
+      #car-select h1 {
+        font-size: 1rem;
+        margin-bottom: 6px;
+      }
+
+      #thumbnail-row {
+        gap: 6px;
+      }
+
+      .car-thumb {
+        width: 55px;
+        height: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===================== INTRO GARAGE DOOR ===================== -->
+<div id="garage-door-wrapper">
+  <div id="garage-door">
+    <button id="open-btn">OPEN GARAGE</button>
+  </div>
+</div>
+
+<!-- ===================== SCENE ===================== -->
+<div id="scene" role="main">
+
+  <button id="export-btn">EXPORT DESIGN</button>
+  <div id="suggest-box">
+    <strong>Suggestion</strong>
+    <span id="suggest-text">Start spraying to make it pop!</span>
+  </div>
+
+  <div id="export-area">
+    <!-- Background -->
+    <img id="bg" src="assets/graffiti_bg.jpg" alt="Graffiti room background" draggable="false" />
+
+    <!-- Car -->
+    <div id="car-wrapper">
+      <img id="car-img" src="assets/car_ferrari.png" alt="Selected car" draggable="false" />
+      <div id="graffiti-layer" style="-webkit-mask-image: url('assets/car_ferrari.png'); mask-image: url('assets/car_ferrari.png'); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;"></div>
+    </div>
+  </div>
+
+  <!-- ─── TOP: Car Selection ─── -->
+  <header id="car-select" aria-label="Car selection">
+    <h1>Select Your Car</h1>
+    <div id="thumbnail-row" role="group" aria-label="Car thumbnails">
+      <button class="car-thumb active" id="thumb-ferrari" aria-label="Ferrari" data-src="assets/car_ferrari.png" data-label="Ferrari">
+        <img src="assets/car_ferrari.png" alt="Ferrari" />
+      </button>
+      <button class="car-thumb" id="thumb-bmw" aria-label="BMW sedan" data-src="assets/car_bmw.png" data-label="BMW">
+        <img src="assets/car_bmw.png" alt="BMW" />
+      </button>
+      <button class="car-thumb" id="thumb-tesla" aria-label="Tesla" data-src="assets/car_tesla.png" data-label="Tesla">
+        <img src="assets/car_tesla.png" alt="Tesla" />
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── BOTTOM: Spray Table ─── -->
+  <footer id="spray-table" aria-label="Spray paint table">
+    <div id="table-platform">
+      <span id="spray-label">Spray Paint</span>
+      <img id="spray-can-img" src="assets/spray_can.png" alt="Spray can" draggable="false" />
+    </div>
+  </footer>
+
+  <!-- ─── BOTTOM: Graffiti Panel ─── -->
+  <div id="graffiti-panel">
+    <img src="assets/graf_1.png" class="graf-thumb selected" data-src="assets/graf_1.png" alt="Graf 1" draggable="false" />
+    <img src="assets/graf_2.png" class="graf-thumb" data-src="assets/graf_2.png" alt="Graf 2" draggable="false" />
+    <img src="assets/graf_3.png" class="graf-thumb" data-src="assets/graf_3.png" alt="Graf 3" draggable="false" />
+    <img src="assets/graf_4.png" class="graf-thumb" data-src="assets/graf_4.png" alt="Graf 4" draggable="false" />
+    <img src="assets/graf_5.png" class="graf-thumb" data-src="assets/graf_5.png" alt="Graf 5" draggable="false" />
+  </div>
+
+</div><!-- end #scene -->
+
+<!-- ===================== AUDIO ===================== -->
+<!-- Background music completely removed per user request -->
+
+<audio id="door-sound" preload="auto">
+  <!-- Local real garage door track -->
+  <source src="assets/garage_door.m4a" type="audio/mp4" />
+</audio>
+
+<audio id="spray-sound" preload="auto">
+  <source src="assets/spray.m4a" type="audio/mp4" />
+</audio>
+
+<script>
+  /* ==========================================
+     Global Audio State & Click Sound
+  ========================================== */
+  let globalMuted = false;
+  let audioCtx = null;
+  
+  function playClickSound() {
+    if (globalMuted) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+    
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.05);
+  }
+
+  /* ==========================================
+     Smart Suggestions Logic
+  ========================================== */
+  const suggestBox = document.getElementById('suggest-box');
+  const suggestText = document.getElementById('suggest-text');
+  let sprayHistory = [];
+
+  function evaluateSuggestions() {
+    const count = sprayHistory.length;
+    let message = "";
+
+    if (count === 0) {
+      message = "Start spraying to make it pop!";
+    } else if (count < 4) {
+      message = "Add more graffiti to make it pop";
+    } else {
+      const xs = sprayHistory.map(p => p.x);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const spread = maxX - minX;
+
+      if (spread < 30 && count > 7) {
+        message = "Balance left and right sides";
+      } else if (spread >= 40 && count > 10) {
+        message = "This looks premium 🔥";
+      } else if (count > 15) {
+        message = "Try spreading designs more evenly";
+      } else {
+        message = "Looking good! Keep adding style";
+      }
+    }
+
+    if (message) {
+      suggestBox.classList.remove('visible');
+      setTimeout(() => {
+        suggestText.textContent = message;
+        suggestBox.classList.add('visible');
+      }, 300); // smooth fade transition between tips
+    }
+  }
+
+  setTimeout(() => suggestBox.classList.add('visible'), 1500); // show initial
+
+  /* ==========================================
+     Car Selection Logic
+  ========================================== */
+  const carImg   = document.getElementById('car-img');
+  const thumbs   = document.querySelectorAll('.car-thumb');
+
+  thumbs.forEach(thumb => {
+    thumb.addEventListener('click', () => {
+      playClickSound(); // soft UI click
+      const src = thumb.dataset.src;
+      if (carImg.src.includes(src)) return; // same car, skip
+
+      // Crossfade swap & wipe existing graffiti
+      carImg.classList.add('switching');
+      
+      const grafLayer = document.getElementById('graffiti-layer');
+      grafLayer.innerHTML = ''; // Wipe existing
+      sprayHistory = []; // Reset suggestions
+      evaluateSuggestions();
+      
+      setTimeout(() => {
+        carImg.src = src;
+        
+        // Update mask logic so spray stays constrained to new vehicle geometric bounds
+        grafLayer.style.webkitMaskImage = `url('${src}')`;
+        grafLayer.style.maskImage = `url('${src}')`;
+        
+        carImg.onload = () => carImg.classList.remove('switching');
+        // Fallback in case image already cached (onload may not fire)
+        setTimeout(() => carImg.classList.remove('switching'), 120);
+      }, 280);
+
+      // Update active thumb
+      thumbs.forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+    });
+  });
+
+
+  /* ==========================================
+     Spray Paint Logic
+  ========================================== */
+  const sprayTable = document.getElementById('spray-table');
+  const grafThumbs = document.querySelectorAll('.graf-thumb');
+  const carWrapper = document.getElementById('car-wrapper');
+  const sprayAudio = document.getElementById('spray-sound');
+  let isSprayMode = false;
+  let activeGrafSrc = 'assets/graf_1.png';
+
+  // Toggle Spray Mode
+  sprayTable.addEventListener('click', () => {
+    isSprayMode = !isSprayMode;
+    document.body.classList.toggle('spray-mode', isSprayMode);
+    if (isSprayMode) playClickSound();
+  });
+
+  // Select Graffiti Menu
+  grafThumbs.forEach(thumb => {
+    thumb.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent bubbling up inadvertently
+      playClickSound();
+      grafThumbs.forEach(t => t.classList.remove('selected'));
+      thumb.classList.add('selected');
+      activeGrafSrc = thumb.dataset.src;
+    });
+  });
+
+  // Place Graffiti sticker on Car
+  carWrapper.addEventListener('click', (e) => {
+    if (!isSprayMode) return;
+    e.stopPropagation();
+
+    // Smart placement using bounding boxes to calculate relative %
+    const rect = carWrapper.getBoundingClientRect();
+    const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+    const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+
+    // Reject clicks on the tire zones (heuristic coordinate exclusion)
+    // Front tire region broadly covers x: 18-35%, y: >72%
+    // Rear tire region broadly covers x: 53-78%, y: >62%
+    if ((xPercent > 18 && xPercent < 35 && yPercent > 72) || 
+        (xPercent > 53 && xPercent < 78 && yPercent > 62)) {
+      return; // Do nothing, reject spray
+    }
+
+    // DOM injection layering with pseudo-3D perspective mapping
+    const graf = document.createElement('img');
+    graf.src = activeGrafSrc;
+    graf.className = 'placed-graf';
+    graf.style.left = `${xPercent}%`;
+    graf.style.top = `${yPercent}%`;
+    
+    // Simulate wrapping around the car geometry
+    const rotY = (xPercent - 45) * 0.8; 
+    let rotX = 0;
+    if (xPercent < 50 && yPercent < 45) {
+      rotX = 35; // Hood slants backward
+    } else {
+      rotX = (yPercent - 60) * -0.2; // Side panel is mostly vertical
+    }
+    const rotZ = (Math.random() * 8) - 4; // Organic imperfection
+    
+    graf.style.transform = `translate(-50%, -50%) perspective(500px) rotateY(${rotY}deg) rotateX(${rotX}deg) rotateZ(${rotZ}deg)`;
+    graf.draggable = false;
+    document.getElementById('graffiti-layer').appendChild(graf);
+
+    // Suggestion Engine Tracking
+    sprayHistory.push({ x: xPercent, y: yPercent });
+    evaluateSuggestions();
+
+    // Audio hit
+    if (!globalMuted) {
+      sprayAudio.currentTime = 0;
+      sprayAudio.playbackRate = 0.8 + Math.random() * 0.4;
+      sprayAudio.volume = 0.5;
+      sprayAudio.play().catch(() => {});
+    }
+  });
+
+  /* ==========================================
+     Intro Door Logic
+  ========================================== */
+  const garageWrapper = document.getElementById('garage-door-wrapper');
+  const garageInner = document.getElementById('garage-door');
+  const introOpenBtn = document.getElementById('open-btn');
+  const sceneElem = document.getElementById('scene');
+  const doorAudio = document.getElementById('door-sound');
+
+  introOpenBtn.addEventListener('click', () => {
+    // Play local garage door sound
+    doorAudio.volume = 0.4;
+    if (!globalMuted) {
+      doorAudio.play().catch(e => console.log('Audio blocked', e));
+    }
+
+    // Shake and slide up
+    garageInner.classList.add('door-shake');
+    garageWrapper.classList.add('open');
+
+    // Fade in scene smoothly while door opens
+    setTimeout(() => {
+      sceneElem.classList.add('visible');
+    }, 400);
+
+    // Cleanup and remove from DOM after animation completes
+    setTimeout(() => {
+      garageInner.classList.remove('door-shake');
+      garageWrapper.style.display = 'none';
+    }, 1500);
+  });
+
+
+  // Automatic background music start has been disabled
+
+  /* ==========================================
+     Export Logic
+  ========================================== */
+  const exportBtn = document.getElementById('export-btn');
+  const exportArea = document.getElementById('export-area');
+
+  exportBtn.addEventListener('click', () => {
+    // Flash button state
+    const originalText = exportBtn.textContent;
+    exportBtn.textContent = 'EXPORTING...';
+    exportBtn.style.pointerEvents = 'none';
+    playClickSound();
+
+    html2canvas(exportArea, {
+      useCORS: true,
+      backgroundColor: null,
+      scale: 2 // High resolution output
+    }).then(canvas => {
+      exportBtn.textContent = originalText;
+      exportBtn.style.pointerEvents = 'auto';
+      
+      // Auto download
+      const link = document.createElement('a');
+      link.download = 'graffiti-design.png';
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+    }).catch(err => {
+      console.error('Export failed:', err);
+      exportBtn.textContent = 'EXPORT FAILED';
+      setTimeout(() => {
+        exportBtn.textContent = originalText;
+        exportBtn.style.pointerEvents = 'auto';
+      }, 2000);
+    });
+  });
+
+
+
+  // Shadow is handled via CSS filter: drop-shadow on #car-img — no JS needed.
+</script>
+
+</body>
+</html>
