@@ -18,4 +18,4 @@ An interactive web experience where users can:
 
 ## 🎯 Goal
 Create a fun, interactive, and visually engaging experience rather than a static website.
-live demo : https://graffitigarage.netlify.app
+live demo : https://graffiticargaragee.netlify.app/
